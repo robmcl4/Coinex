@@ -19,5 +19,65 @@ class TestAPIFunctions(unittest.TestCase):
             "Config should have secret"
         )
 
+    def test_get_currencies(self):
+        curr = coinex_api.currencies()
+        self.assertTrue(
+            isinstance(
+                curr,
+                list
+            ),
+            "currencies should be a list"
+        )
+
+    def test_get_trade_pairs(self):
+        tp = coinex_api.trade_pairs()
+        self.assertTrue(
+            isinstance(
+                tp,
+                list
+            ),
+            "trade pairs should be a list"
+        )
+
+    def test_get_order_status(self):
+        ords = coinex_api.orders(2)
+        self.assertTrue(
+            isinstance(
+                ords,
+                list
+            ),
+            "orders should be a list"
+        )
+
+    def test_get_last_trades(self):
+        trds = coinex_api.last_trades(2)
+        self.assertTrue(
+            isinstance(
+                trds,
+                list
+            ),
+            "last trades should be a list"
+        )
+
+    def test_get_balances(self):
+        bal = coinex_api.balances()
+        self.assertTrue(
+            isinstance(
+                bal,
+                list
+            ),
+            "last trades should be a list"
+        )
+
+    def test_get_open_orders(self):
+        ords = coinex_api.open_orders()
+        self.assertTrue(
+            isinstance(
+                ords,
+                list
+            )
+        )
+
+
 if __name__ == '__main__':
     unittest.main()
