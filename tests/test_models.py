@@ -41,6 +41,37 @@ class TestModels(unittest.TestCase):
         self.assertTrue(curr == curr, 'Equality should work')
         self.assertFalse(curr != curr, 'Not equals should work')
 
+    def test_registry(self):
+        reg = models.registry
+        curr = models.Currency(10, 'NMC', 'Namecoin')
+        bal = models.Balance(curr, 100)
+        bal2 = models.Balance(curr, 20)
+        reg.put(curr)
+        reg.put(bal)
+        reg.put(bal2)
+        got_bal = reg.get(models.Balance, bal.id)
+        self.assertTrue(
+            got_bal == bal,
+            'Balance should be equal'
+        )
+        got_bal = reg.get(models.Balance, bal2.id)
+        self.assertTrue(
+            bal2 == got_bal,
+            'Balance 2 should be equal'
+        )
+        got_curr = reg.get(models.Currency, curr.id)
+        self.assertTrue(
+            curr == got_curr,
+            'Currencies should be equal'
+        )
+        deleted = reg.delete(curr)
+        self.assertTrue(deleted == curr, "should have deleted curr")
+        got_curr = reg.get(models.Currency, curr.id)
+        self.assertTrue(
+            got_curr is None,
+            'Should not fetch object after deletion'
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

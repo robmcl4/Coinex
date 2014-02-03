@@ -23,6 +23,12 @@ class Balance:
         self.currency = currency
         self.amount = Decimal(amount)
 
+    def __eq__(self, other):
+        return isinstance(other, Balance) and other.id == self.id
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 
 class Currency:
     """
@@ -97,7 +103,7 @@ class Registry:
     """
 
     def __init__(self):
-        self._dict = {}
+        self._dct = {}
 
     def get(self, model, id_):
         """
@@ -130,16 +136,16 @@ class Registry:
             if model in self._dct:
                 if obj in self._dct[model]:
                     ret = self._dct[model][obj]
-                    del self._dct[model][obj]
+                    self._dct[model][obj] = None
                     return ret
-            else:
-                cls = obj.__class__
-                if cls in self._dct:
-                    if obj.id in self._dct[cls]:
-                        ret = self._dct[cls][obj.id]
-                        del self._dct[cls][obj.id]
-                        return ret
-            return None
+        else:
+            cls = obj.__class__
+            if cls in self._dct:
+                if obj.id in self._dct[cls]:
+                    ret = self._dct[cls][obj.id]
+                    self._dct[cls][obj.id] = None
+                    return ret
+        return None
 
 
 registry = Registry()
