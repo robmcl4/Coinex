@@ -1,5 +1,7 @@
 import unittest
+from decimal import *
 import coinex_api
+import models
 
 
 class TestAPIFunctions(unittest.TestCase):
@@ -12,11 +14,11 @@ class TestAPIFunctions(unittest.TestCase):
         conf = coinex_api._get_config()
         conf = coinex_api._get_config()
 
-        self.assertTrue('Credentials' in conf, "Config should have credentials")
-        self.assertTrue('Key' in conf['Credentials'], "Config should have key")
+        self.assertTrue('Credentials' in conf, 'Config should have credentials')
+        self.assertTrue('Key' in conf['Credentials'], 'Config should have key')
         self.assertTrue(
             'Secret' in conf['Credentials'],
-            "Config should have secret"
+            'Config should have secret'
         )
 
     def test_get_currencies(self):
@@ -26,7 +28,7 @@ class TestAPIFunctions(unittest.TestCase):
                 curr,
                 list
             ),
-            "currencies should be a list"
+            'currencies should be a list'
         )
 
     def test_get_trade_pairs(self):
@@ -36,7 +38,7 @@ class TestAPIFunctions(unittest.TestCase):
                 tp,
                 list
             ),
-            "trade pairs should be a list"
+            'trade pairs should be a list'
         )
 
     def test_get_order_status(self):
@@ -46,7 +48,7 @@ class TestAPIFunctions(unittest.TestCase):
                 ords,
                 list
             ),
-            "orders should be a list"
+            'orders should be a list'
         )
 
     def test_get_last_trades(self):
@@ -56,7 +58,7 @@ class TestAPIFunctions(unittest.TestCase):
                 trds,
                 list
             ),
-            "last trades should be a list"
+            'last trades should be a list'
         )
 
     def test_get_balances(self):
@@ -66,7 +68,7 @@ class TestAPIFunctions(unittest.TestCase):
                 bal,
                 list
             ),
-            "last trades should be a list"
+            'last trades should be a list'
         )
 
     def test_get_open_orders(self):
@@ -77,6 +79,32 @@ class TestAPIFunctions(unittest.TestCase):
                 list
             )
         )
+
+
+class TestModels(unittest.TestCase):
+
+    def set_up(self):
+        pass
+
+    def test_balance(self):
+        curr = models.Currency(10, 'BTC', 'Bitcoin')
+        bal = models.Balance(curr, '10')
+        self.assertTrue(isinstance(bal.id, int), 'balance should be an int')
+        bal2 = models.Balance(curr, '11')
+        self.assertTrue(bal.id != bal2.id, 'balance ids should not be equal')
+        self.assertTrue(bal.amount == Decimal('10'), 'amount should match')
+        self.assertTrue(bal.currency == curr, 'currency should match')
+
+    def test_currency(self):
+        curr = models.Currency(10, 'NMC', 'Namecoin')
+        self.assertTrue(curr.id == 10, 'ID should be 10')
+        self.assertTrue(
+            curr.abbreviation == 'NMC',
+            'abbreviation should be NMC'
+        )
+        self.assertTrue(curr.name == 'Namecoin', 'Name should be Namecoin')
+        self.assertTrue(curr == curr, 'Equality should work')
+        self.assertFalse(curr != curr, 'Not equals should work')
 
 
 if __name__ == '__main__':
