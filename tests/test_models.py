@@ -30,6 +30,9 @@ class TestModels(unittest.TestCase):
         self.assertTrue(bal.amount == Decimal('10'), 'amount should match')
         self.assertTrue(bal.currency == curr, 'currency should match')
 
+        bals = models.Balance.get_own()
+        self.assertTrue(isinstance(bals, list), 'balances should be a list')
+
     def test_currency(self):
         curr = models.Currency(10, 'NMC', 'Namecoin')
         self.assertTrue(curr.id == 10, 'ID should be 10')
@@ -40,6 +43,16 @@ class TestModels(unittest.TestCase):
         self.assertTrue(curr.name == 'Namecoin', 'Name should be Namecoin')
         self.assertTrue(curr == curr, 'Equality should work')
         self.assertFalse(curr != curr, 'Not equals should work')
+
+        curs = models.Currency.get_all()
+        self.assertTrue(
+            0 != len(curs),
+            'List of currencies should not be empty'
+        )
+        self.assertTrue(
+            isinstance(curs[0], models.Currency),
+            'Currency should be a Currency'
+        )
 
     def test_registry(self):
         reg = models.registry
@@ -72,6 +85,20 @@ class TestModels(unittest.TestCase):
             'Should not fetch object after deletion'
         )
 
+    def test_exchange(self):
+        excs = models.Exchange.get_all()
+        self.assertTrue(0 != len(excs), 'There should be more than 0 exchanges')
+        self.assertTrue(
+            isinstance(excs[0], models.Exchange),
+            'List should have exchanges'
+        )
+        ex = excs[0]
+        ords = ex.get_orders()
+        self.assertTrue(0 != len(ords), 'There should be more than 0 orders')
+        self.assertTrue(
+            isinstance(ords[0], models.Order),
+            'List should have orders'
+        )
 
 if __name__ == '__main__':
     unittest.main()
