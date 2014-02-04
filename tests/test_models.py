@@ -8,6 +8,7 @@ import unittest
 import sys
 import os
 from decimal import *
+from datetime import datetime
 
 _path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _path not in sys.path:
@@ -99,11 +100,28 @@ class TestModels(unittest.TestCase):
             isinstance(ords[0], models.Order),
             'List should have orders'
         )
+        self.assertTrue(
+            ords[0].created_at is not None,
+            'Should have a created_at datetime'
+        )
+        self.assertTrue(
+            isinstance(ords[0].created_at, datetime),
+            'created_at should be a datetime'
+        )
+
         ords = ex.get_recent_trades()
         self.assertTrue(0 != len(ords), 'There should be more than 0 orders 02')
         self.assertTrue(
             isinstance(ords[0], models.Order),
             'list should have orders 02'
+        )
+        self.assertTrue(
+            ords[0].completed_at is not None,
+            'Should have a completed_at datetime'
+        )
+        self.assertTrue(
+            isinstance(ords[0].completed_at, datetime),
+            'completed_at should be a datetime'
         )
 
 if __name__ == '__main__':

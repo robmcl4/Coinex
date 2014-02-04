@@ -5,6 +5,7 @@ Contains models for the coinex API
 
 from decimal import *
 import coinex_api
+from datetime import datetime
 
 
 # set the decimal precision to 8
@@ -175,11 +176,16 @@ class Exchange:
                 self.to_currency,
                 Decimal(order['amount']) / pow(10, 8)
             )
+            created_at = datetime.strptime(
+                order['updated_at'],
+                '%Y-%m-%dT%H:%M:%S.%fZ'
+            )
             o = Order(
                 order['id'],
                 self,
                 order['bid'],
-                bal
+                bal,
+                created_at=created_at
             )
             registry.put(bal)
             registry.put(o)
@@ -197,11 +203,16 @@ class Exchange:
                 self.to_currency,
                 Decimal(order['amount']) / pow(10, 9)
             )
+            completed_at = datetime.strptime(
+                order['created_at'],
+                '%Y-%m-%dT%H:%M:%S.%fZ'
+            )
             o = Order(
                 order['id'],
                 self,
                 order['bid'],
-                bal
+                bal,
+                completed_at=completed_at
             )
             registry.put(bal)
             registry.put(o)
@@ -250,7 +261,13 @@ class Order:
     Order.get_own() : get all own orders
     """
 
-    def __init__(self, order_id, exchange, bid, bal):
+    def __init__(self,
+                 order_id,
+                 exchange,
+                 bid,
+                 bal,
+                 created_at=None,
+                 completed_at=None):
         """
         Construct a new order
         exchange: an Exchange on which this order was placed
@@ -261,6 +278,8 @@ class Order:
         self.exchange = exchange
         self.bid = bool(bid)
         self.balance = bal
+        self.created_at = created_at
+        self.completed_at = completed_at
 
     @classmethod
     def get_own(cls):
