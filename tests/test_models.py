@@ -99,6 +99,12 @@ class TestModels(unittest.TestCase):
             isinstance(ords[0], models.Order),
             'List should have orders'
         )
+        ords = ex.get_recent_trades()
+        self.assertTrue(0 != len(ords), 'There should be more than 0 orders 02')
+        self.assertTrue(
+            isinstance(ords[0], models.Order),
+            'list should have orders 02'
+        )
 
 if __name__ == '__main__':
     unittest.main()

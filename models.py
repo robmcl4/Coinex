@@ -126,6 +126,7 @@ class Exchange:
         from_currency: the Currency from which this trades (ie Bitcoin)
         to_currency: the Currency to which this trades (ie Mooncoin)
         get_orders() : get a list of all orders
+        get_recent_trades() : get a list of recently executed trades
     Exchange.get(int_): get the Exchange for this ID
     Exchange.get_all(): get all Exchanges available
     """
@@ -164,7 +165,7 @@ class Exchange:
 
     def get_orders(self):
         """
-        Load all orders for the current exchange
+        Load / get all orders for the current exchange
         """
         # remove old ones if needed
         ords = coinex_api.orders(self.id)
@@ -173,6 +174,28 @@ class Exchange:
             bal = Balance(
                 self.to_currency,
                 Decimal(order['amount']) / pow(10, 8)
+            )
+            o = Order(
+                order['id'],
+                self,
+                order['bid'],
+                bal
+            )
+            registry.put(bal)
+            registry.put(o)
+            ret.append(o)
+        return ret
+
+    def get_recent_trades(self):
+        """
+        Load / get all recent trades for this exchange
+        """
+        ords = coinex_api.last_trades(self.id)
+        ret = []
+        for order in ords:
+            bal = Balance(
+                self.to_currency,
+                Decimal(order['amount']) / pow(10, 9)
             )
             o = Order(
                 order['id'],
