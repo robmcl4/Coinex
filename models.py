@@ -180,11 +180,13 @@ class Exchange:
                 order['updated_at'],
                 '%Y-%m-%dT%H:%M:%S.%fZ'
             )
+            rate = Decimal(order['rate']) / pow(10, 8)
             o = Order(
                 order['id'],
                 self,
                 order['bid'],
                 bal,
+                rate,
                 created_at=created_at
             )
             registry.put(bal)
@@ -201,17 +203,19 @@ class Exchange:
         for order in ords:
             bal = Balance(
                 self.to_currency,
-                Decimal(order['amount']) / pow(10, 9)
+                Decimal(order['amount']) / pow(10, 8)
             )
             completed_at = datetime.strptime(
                 order['created_at'],
                 '%Y-%m-%dT%H:%M:%S.%fZ'
             )
+            rate = Decimal(order['rate']) / pow(10, 8)
             o = Order(
                 order['id'],
                 self,
                 order['bid'],
                 bal,
+                rate,
                 completed_at=completed_at
             )
             registry.put(bal)
@@ -257,6 +261,7 @@ class Order:
         id: the order id
         exchange: the Exchange for this order
         bid: true if this is bid(buy), false for ask(sell)
+        rate: Decimal rate at to_currency per from_currency
         balalce: the Balance of this Order
     Order.get_own() : get all own orders
     """
@@ -266,6 +271,7 @@ class Order:
                  exchange,
                  bid,
                  bal,
+                 rate,
                  created_at=None,
                  completed_at=None):
         """
@@ -278,6 +284,7 @@ class Order:
         self.exchange = exchange
         self.bid = bool(bid)
         self.balance = bal
+        self.rate = Decimal(rate)
         self.created_at = created_at
         self.completed_at = completed_at
 
@@ -294,12 +301,14 @@ class Order:
                 exc.to_currency,
                 Decimal(ordr['amount']) / pow(10, 8)
             )
+            rate = Decimal(ordr['rate']) / pow(10, 8)
             ret.append(
                 Order(
                     ordr['id'],
                     exc,
                     ordr['bid'],
-                    bal
+                    bal,
+                    rate
                 )
             )
         return ret
