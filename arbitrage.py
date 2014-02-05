@@ -78,7 +78,43 @@ class SmartExchange(Exchange):
         elif target_cur == self.from_currency:
             return amt * self.get_best_offer(target_cur).rate
         else:
-            raise ValueError('Unsupported currency for this exchanges')
+            raise ValueError('Unsupported currency for this exchange')
+
+    def max_currency(self, target_cur):
+        """
+        Returns a Decimal of the maximum amount of currency that can
+        be exchanged into target_cur in units of the currency
+        that is not target_cur
+        NOTE: this accounts for the transaction fee
+        """
+        tfee = Decimal(1 - TRANSAC_FEE)
+        if target_cur == self.to_currency:
+            best_order = self.get_lowest_ask()
+            orders = filter(
+                lambda x: x.rate == best_order.rate,
+                self.get_orders()
+            )
+            # we need to return in units of from_currency
+            # balance.amount is in units of to_currency
+            # order.rate is in to_currency per from_currency
+            ret = Decimal(0)
+            for order in orders:
+                ret += order.balance.amount / order.rate
+            return ret * tfee
+        elif target_cur == self.from_currency:
+            best_order = self.get_highest_bid()
+            orders = filter(
+                lambda x: x.rate == best_order.rate,
+                self.get_orders()
+            )
+            # we need to return in units of to_currency
+            # balance.amount is in units of to_currency
+            # order.rate is in to_currency per from_currency
+            ret = Decimal(0)
+            for order in orders:
+                ret += order.balance.amount
+            return ret * tfee
+        raise ValueError('Unsupported currency for this exchange')
 
 
 class ArbitrageChain:
@@ -119,6 +155,29 @@ class ArbitrageChain:
         self._roi = Decimal(amt - Decimal(1))
         return self._roi
 
+    def get_max_transfer(self):
+        """
+        Get the max that can be transferred through this chain
+        returns in units of currency 1
+        """
+        tfee = Decimal(1 - TRANSAC_FEE)
+
+        # max3 is currently in units of cur3, convert to cur1 backward
+        max3 = self.ex3.max_currency(self.cur1)
+        # max3 is now in units of cur2
+        max3 = self.ex2.convert_to_other(max3, self.cur2) / tfee
+        # max3 is now in units of cur1
+        max3 = self.ex1.convert_to_other(max3, self.cur1) / tfee
+
+        # max2 is currently in units of cur2, convert to cur1 backward
+        max2 = self.ex2.max_currency(self.cur3)
+        # max2 is now in units of cur1
+        max2 = self.ex1.convert_to_other(max2, self.cur1) / tfee
+
+        # max1 is currently in units of cur1
+        max1 = self.ex1.max_currency(self.cur2)
+        return min(max1, max2, max3)
+
     def __str__(self):
         ret = ''
         ret += self.cur1.abbreviation.rjust(4)
@@ -129,6 +188,23 @@ class ArbitrageChain:
         ret += ' -> '
         ret += self.cur1.abbreviation.rjust(4)
         ret += ' ({0})%'.format(str(self.get_roi() * 100))
+        ret += ' ({0} {1})'.format(
+            str(self.get_max_transfer()),
+            self.cur1.abbreviation
+        )
+
+        ret += '\n'
+
+        def describe_exchange(ex, to_currency):
+            return '-> {0} {1}/{2}'.format(
+                ex.get_best_offer(to_currency).rate,
+                ex.to_currency.abbreviation,
+                ex.from_currency.abbreviation
+            )
+
+        ret += describe_exchange(self.ex1, self.cur2) + '\n'
+        ret += describe_exchange(self.ex2, self.cur3) + '\n'
+        ret += describe_exchange(self.ex3, self.cur1)
         return ret
 
 
@@ -154,9 +230,9 @@ def get_chains():
     excs = Exchange.get_all()
     ret = []
     for ex1 in excs:
-        excld = ex1.from_currency
+        exld = ex1.from_currency
         viable1 = filter(
-            lambda x: valid(x, ex1.to_currency, exclude=ex1, exclude_cur=excld),
+            lambda x: valid(x, ex1.to_currency, exclude=ex1, exclude_cur=exld),
             excs
         )
         for ex2 in viable1:
@@ -196,12 +272,9 @@ def show_all():
     """
     print("-------Getting All Chains-------")
     chains = get_chains()
-    ascii_art_spinner.start(len(chains))
     for chain in chains:
         ascii_art_spinner.clear()
         print(str(chain))
-        ascii_art_spinner.tick()
-    ascii_art_spinner.clear()
     print('Found {0} arbitrage chains'.format(len(chains)))
 
 
@@ -210,12 +283,9 @@ def show_profitable():
     Print out only profitable arbitrages
     """
     print("-------Getting Profitable Chains-------")
-    chains = get_profitable_chains(
-        len_cb=ascii_art_spinner.start,
-        iter_cb=ascii_art_spinner.tick
-    )
+    chains = get_profitable_chains()
     n = 0
-    for chain in list(chains):
+    for chain in chains:
         print(str(chain))
         n += 1
     print('Found {0} arbitrage chains'.format(n))
