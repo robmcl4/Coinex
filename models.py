@@ -358,10 +358,12 @@ class Wallet:
         self.id = Wallet.next_id
         Wallet.next_id += 1
 
-    def get_balances(self):
+    @classmethod
+    def get_balances(cls):
         return Balance.get_own()
 
-    def get_orders(self):
+    @classmethod
+    def get_orders(cls):
         return Order.get_own()
 
 
