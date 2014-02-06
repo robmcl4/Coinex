@@ -1,7 +1,11 @@
 """
 arbitrage.py
 
-Check for arbitrage opportunities
+Check for arbitrage opportunities.
+
+USAGE:  python arbitrage.py [--all]
+
+--all   Display all arbitrage opportunities, not just profitable ones
 """
 
 from models import *
