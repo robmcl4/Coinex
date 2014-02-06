@@ -224,7 +224,7 @@ class Order:
     """
     A container for an order
     Attributes:
-        id: the order id
+        order_id: the order id
         exchange: the Exchange for this order
         bid: true if this is bid(buy), false for ask(sell)
         rate: Decimal rate at to_currency per from_currency
@@ -285,6 +285,9 @@ class Order:
             self.bid = bool(bid)
             self.amount = amount
             self.rate = Decimal(rate)
+            self.filled = filled
+            self.cancelled = cancelled
+            self.complete = complete
             self.created_at = created_at
             self.completed_at = completed_at
 
@@ -310,11 +313,38 @@ class Order:
             )
         return ret
 
-    def get_compliment():
+    def get_compliment(self, transac_fee=Decimal('0.002'), max_amt=None):
         """
         Get the compliment for this order which, when submitted,
-        will fulfill the other order
+        will fulfill the other order.
         """
+        amt = (self.amount - self.filled) / Decimal(1 - transac_fee)
+        if max_amt is not None:
+            amt = min(max_amt, amt)
+        other = Order(
+            order_id=-1,
+            exchange=self.exchange,
+            amount=amt,
+            bid=not self.bid,
+            rate=self.rate
+        )
+        return other
+
+    def submit(self):
+        """
+        Submit this order to the coinex api.
+        Resets this object's properties to reflect
+        the new ones reported by coinex_api, and
+        also returns the parsed JSON returned by coinex
+        """
+        ordr = coinex_api.submit_order(
+            trade_pair_id=self.exchange.id,
+            amount=self.amount,
+            bid=self.bid,
+            rate=self.rate
+        )
+        self.__init__(API_resp=ordr)
+        return ordr
 
 
 class Wallet:

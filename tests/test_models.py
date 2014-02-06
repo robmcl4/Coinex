@@ -124,5 +124,22 @@ class TestModels(unittest.TestCase):
             'completed_at should be a datetime'
         )
 
+    def test_orders(self):
+        c1 = models.Currency(1, 'FOO', 'Foocoin')
+        c2 = models.Currency(2, 'BAR', 'Barcoin')
+        exc = models.Exchange(1, c1, c2)
+        ordr = models.Order(
+            order_id=1,
+            exchange=exc,
+            bid=True,
+            amount=Decimal('1.998'),
+            rate=Decimal(2),
+            filled=Decimal(1)
+        )
+        comp = ordr.get_compliment()
+        self.assertTrue(comp.exchange == exc, 'Exchanges should match')
+        self.assertTrue(comp.rate == Decimal(2), 'Rates should match')
+        self.assertTrue(comp.amount == Decimal('1'), 'amount should match')
+
 if __name__ == '__main__':
     unittest.main()
