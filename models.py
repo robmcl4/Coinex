@@ -172,20 +172,7 @@ class Exchange:
         ords = coinex_api.orders(self.id)
         ret = []
         for order in ords:
-            amt = Decimal(order['amount']) / pow(10, 8)
-            created_at = datetime.strptime(
-                order['updated_at'],
-                '%Y-%m-%dT%H:%M:%S.%fZ'
-            )
-            rate = Decimal(order['rate']) / pow(10, 8)
-            o = Order(
-                order['id'],
-                self,
-                order['bid'],
-                amt,
-                rate,
-                created_at=created_at
-            )
+            o = Order(API_resp=order)
             registry.put(o)
             ret.append(o)
         return ret
@@ -197,20 +184,7 @@ class Exchange:
         ords = coinex_api.last_trades(self.id)
         ret = []
         for order in ords:
-            amt = Decimal(order['amount']) / pow(10, 8)
-            completed_at = datetime.strptime(
-                order['created_at'],
-                '%Y-%m-%dT%H:%M:%S.%fZ'
-            )
-            rate = Decimal(order['rate']) / pow(10, 8)
-            o = Order(
-                order['id'],
-                self,
-                order['bid'],
-                amt,
-                rate,
-                completed_at=completed_at
-            )
+            o = Order(API_resp=order)
             registry.put(o)
             ret.append(o)
         return ret
@@ -255,31 +229,63 @@ class Order:
         bid: true if this is bid(buy), false for ask(sell)
         rate: Decimal rate at to_currency per from_currency
         amount: the amount of this Order
+        filled: the amount of this order that has been filled
+        cancelled: true if this order is cancelled
+        complete: true if this order is completed
     Order.get_own() : get all own orders
     """
 
     def __init__(self,
-                 order_id,
-                 exchange,
-                 bid,
-                 amount,
-                 rate,
+                 API_resp=None,
+                 order_id=None,
+                 exchange=None,
+                 bid=None,
+                 amount=None,
+                 filled=None,
+                 cancelled=None,
+                 complete=None,
+                 rate=None,
                  created_at=None,
                  completed_at=None):
         """
         Construct a new order
-        exchange: an Exchange on which this order was placed
-        bid: true if this is a bid(buy), false for ask(sell)
-        amount: a Decimal (or parsable to Decimal) object representing
-                the amount of this order (in exchange's to_currency)
+        NOTE: either pass the response from coinex_api into API_resp or
+        manually add each property
         """
-        self.id = int(order_id)
-        self.exchange = exchange
-        self.bid = bool(bid)
-        self.amount = amount
-        self.rate = Decimal(rate)
-        self.created_at = created_at
-        self.completed_at = completed_at
+        if API_resp is not None:
+            order = API_resp
+            self.id = order['id']
+            self.amount = Decimal(order['amount']) / pow(10, 8)
+            self.rate = Decimal(order['rate']) / pow(10, 8)
+            self.bid = order['bid']
+            # if this is a pending order do this
+            if 'filled' in order:
+                self.filled = Decimal(order['filled']) / pow(10, 8)
+                self.cancelled = order['cancelled']
+                self.complete = order['complete']
+                self.created_at = datetime.strptime(
+                    order['created_at'],
+                    '%Y-%m-%dT%H:%M:%S.%fZ'
+                )
+                self.complete_at = None
+            # else this order was already done, has some different keys
+            else:
+                self.filled = self.amount
+                self.cancelled = False
+                self.complete = True
+                self.created_at = None
+                self.completed_at = datetime.strptime(
+                    order['created_at'],
+                    '%Y-%m-%dT%H:%M:%S.%fZ'
+                )
+        else:
+            self.id = int(order_id)
+            self.exchange = exchange
+            self.bid = bool(bid)
+            self.amount = amount
+            self.rate = Decimal(rate)
+            self.created_at = created_at
+            self.completed_at = completed_at
 
     @classmethod
     def get_own(cls):
@@ -302,6 +308,12 @@ class Order:
                 )
             )
         return ret
+
+    def get_compliment():
+        """
+        Get the compliment for this order which, when submitted,
+        will fulfill the other order
+        """
 
 
 class Wallet:
