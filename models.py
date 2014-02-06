@@ -255,6 +255,7 @@ class Order:
         if API_resp is not None:
             order = API_resp
             self.id = order['id']
+            self.exchange = Exchange.get(API_resp['trade_pair_id'])
             self.amount = Decimal(order['amount']) / pow(10, 8)
             self.rate = Decimal(order['rate']) / pow(10, 8)
             self.bid = order['bid']
