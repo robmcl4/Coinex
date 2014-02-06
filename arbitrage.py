@@ -212,6 +212,17 @@ class ArbitrageChain:
         return ret
 
 
+def can_execute_chain(chain):
+    """
+    Returns true if the user currently has some of the first currency
+    """
+    bals = Wallet.get_balances()
+    for bal in bals:
+        if bal.currency == chain.cur1:
+            return True
+    return False
+
+
 def valid(exc, cur1, cur2=None, exclude=None, exclude_cur=None):
     """
     Find if the given exc satisfies currency 1
