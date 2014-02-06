@@ -103,7 +103,7 @@ class SmartExchange(Exchange):
             # order.rate is in to_currency per from_currency
             ret = Decimal(0)
             for order in orders:
-                ret += order.balance.amount / order.rate
+                ret += order.amount / order.rate
             return ret * tfee
         elif target_cur == self.from_currency:
             best_order = self.get_highest_bid()
@@ -116,7 +116,7 @@ class SmartExchange(Exchange):
             # order.rate is in to_currency per from_currency
             ret = Decimal(0)
             for order in orders:
-                ret += order.balance.amount
+                ret += order.amount
             return ret * tfee
         raise ValueError('Unsupported currency for this exchange')
 

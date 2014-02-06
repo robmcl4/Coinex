@@ -172,10 +172,7 @@ class Exchange:
         ords = coinex_api.orders(self.id)
         ret = []
         for order in ords:
-            bal = Balance(
-                self.to_currency,
-                Decimal(order['amount']) / pow(10, 8)
-            )
+            amt = Decimal(order['amount']) / pow(10, 8)
             created_at = datetime.strptime(
                 order['updated_at'],
                 '%Y-%m-%dT%H:%M:%S.%fZ'
@@ -185,11 +182,10 @@ class Exchange:
                 order['id'],
                 self,
                 order['bid'],
-                bal,
+                amt,
                 rate,
                 created_at=created_at
             )
-            registry.put(bal)
             registry.put(o)
             ret.append(o)
         return ret
@@ -201,10 +197,7 @@ class Exchange:
         ords = coinex_api.last_trades(self.id)
         ret = []
         for order in ords:
-            bal = Balance(
-                self.to_currency,
-                Decimal(order['amount']) / pow(10, 8)
-            )
+            amt = Decimal(order['amount']) / pow(10, 8)
             completed_at = datetime.strptime(
                 order['created_at'],
                 '%Y-%m-%dT%H:%M:%S.%fZ'
@@ -214,11 +207,10 @@ class Exchange:
                 order['id'],
                 self,
                 order['bid'],
-                bal,
+                amt,
                 rate,
                 completed_at=completed_at
             )
-            registry.put(bal)
             registry.put(o)
             ret.append(o)
         return ret
@@ -262,7 +254,7 @@ class Order:
         exchange: the Exchange for this order
         bid: true if this is bid(buy), false for ask(sell)
         rate: Decimal rate at to_currency per from_currency
-        balalce: the Balance of this Order
+        amount: the amount of this Order
     Order.get_own() : get all own orders
     """
 
@@ -270,7 +262,7 @@ class Order:
                  order_id,
                  exchange,
                  bid,
-                 bal,
+                 amount,
                  rate,
                  created_at=None,
                  completed_at=None):
@@ -278,12 +270,13 @@ class Order:
         Construct a new order
         exchange: an Exchange on which this order was placed
         bid: true if this is a bid(buy), false for ask(sell)
-        bal: a Balance object representing the balance on this order
+        amount: a Decimal (or parsable to Decimal) object representing
+                the amount of this order (in exchange's to_currency)
         """
         self.id = int(order_id)
         self.exchange = exchange
         self.bid = bool(bid)
-        self.balance = bal
+        self.amount = amount
         self.rate = Decimal(rate)
         self.created_at = created_at
         self.completed_at = completed_at
@@ -297,17 +290,14 @@ class Order:
         ret = []
         for ordr in ords:
             exc = Exchange.get(ordr['trade_pair_id'])
-            bal = Balance(
-                exc.to_currency,
-                Decimal(ordr['amount']) / pow(10, 8)
-            )
+            amt = Decimal(ordr['amount']) / pow(10, 8)
             rate = Decimal(ordr['rate']) / pow(10, 8)
             ret.append(
                 Order(
                     ordr['id'],
                     exc,
                     ordr['bid'],
-                    bal,
+                    amt,
                     rate
                 )
             )
