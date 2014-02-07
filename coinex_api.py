@@ -82,7 +82,6 @@ def _make_request(page, data=None, private=False):
         if data is not None:
             json.encoder.FLOAT_REPR = lambda o: 'foo'
             data = json.dumps(data)
-            print(data)
         # also format the data correctly
         else:
             data = ''

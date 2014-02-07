@@ -10,6 +10,7 @@ USAGE:  python arbitrage.py [--all]
 
 from models import *
 from decimal import *
+import utils
 import ascii_art_spinner
 import sys
 
@@ -69,7 +70,10 @@ class SmartExchange(Exchange):
             return self.get_lowest_ask()
         elif target_cur == self.from_currency:
             return self.get_highest_bid()
-        raise ValueError('Unsupported currency for this exchange')
+        raise ValueError(
+            'Unsupported currency for this exchange ' +
+            target_cur.abbreviation
+        )
 
     def convert_to_other(self, amt, target_cur):
         """
@@ -82,7 +86,10 @@ class SmartExchange(Exchange):
         elif target_cur == self.from_currency:
             return amt * self.get_best_offer(target_cur).rate
         else:
-            raise ValueError('Unsupported currency for this exchange')
+            raise ValueError(
+                'Unsupported currency for this exchange ' +
+                target_cur.abbreviation
+            )
 
     def max_currency(self, target_cur):
         """
@@ -100,10 +107,10 @@ class SmartExchange(Exchange):
             )
             # we need to return in units of from_currency
             # balance.amount is in units of to_currency
-            # order.rate is in to_currency per from_currency
+            # order.rate is in from_currency per to_currency
             ret = Decimal(0)
             for order in orders:
-                ret += (order.amount - order.filled) / order.rate
+                ret += (order.amount - order.filled) * order.rate
             return ret * tfee
         elif target_cur == self.from_currency:
             best_order = self.get_highest_bid()
@@ -113,12 +120,15 @@ class SmartExchange(Exchange):
             )
             # we need to return in units of to_currency
             # balance.amount is in units of to_currency
-            # order.rate is in to_currency per from_currency
+            # order.rate is in from_currency per to_currency
             ret = Decimal(0)
             for order in orders:
                 ret += order.amount - order.filled
             return ret * tfee
-        raise ValueError('Unsupported currency for this exchange')
+        raise ValueError(
+            'Unsupported currency for this exchange ' +
+            target_cur.abbreviation
+        )
 
 
 class ArbitrageChain:
@@ -182,6 +192,86 @@ class ArbitrageChain:
         max1 = self.ex1.max_currency(self.cur2)
         return min(max1, max2, max3)
 
+    def can_execute(self):
+        """
+        Returns true if the user currently has some of the first currency
+        """
+        bals = Wallet.get_balances()
+        for bal in bals:
+            if bal.currency == self.cur1:
+                return True
+        return False
+
+    def perform_chain_operation(self, amt, target_cur, exchange):
+        """
+        Trade the given amount (of not target_cur) over the exchange.
+        Returns the amount of target_cur that we now have
+        """
+        tfee = Decimal(1 - Decimal(TRANSAC_FEE))
+
+        from_cur = exchange.from_currency
+        if exchange.from_currency == target_cur:
+            from_cur = exchange.to_currency
+
+        best = exchange.get_best_offer(target_cur)
+
+        print('Buying {0} of {1}'.format(
+            str(amt),
+            target_cur.abbreviation
+        ))
+
+        # amount must always be in terms of the 'to_currency',
+        # convert if needed
+        if exchange.to_currency != from_cur:
+            amt = self.ex1.convert_to_other(amt, target_cur)
+
+        ordr = best.get_compliment(max_amt=amt)
+        try:
+            ordr.submit()
+        except Exception as e:
+            print(e.read())
+            raise e
+        if (ordr.complete is not True):
+            print("waiting for order to complete")
+            ordr = utils.wait_for_order_to_complete(ordr.id)
+        amt *= tfee
+        print("now have {0} of {1}".format(
+            str(amt),
+            target_cur.abbreviation
+        ))
+        return amt
+
+    def execute(self):
+        """
+        Perform the trades necessary to complete this chain
+        """
+        while True:
+            try:
+                amt = input("How much currency to use? ({0}) ".format(
+                    self.cur1.abbreviation
+                ))
+                amt = Decimal(amt)
+                break
+            except InvalidOperation:
+                print("Invalid amount. Enter again.")
+
+        amt = self.perform_chain_operation(
+            amt,
+            self.cur2,
+            self.ex1
+        )
+        amt = self.perform_chain_operation(
+            amt,
+            self.cur3,
+            self.ex2
+        )
+        amt = self.perform_chain_operation(
+            amt,
+            self.cur1,
+            self.ex3
+        )
+        print("finished")
+
     def __str__(self):
         ret = ''
         ret += self.cur1.abbreviation.rjust(4)
@@ -202,8 +292,8 @@ class ArbitrageChain:
         def describe_exchange(ex, to_currency):
             return '-> {0} {1}/{2}'.format(
                 ex.get_best_offer(to_currency).rate,
-                ex.to_currency.abbreviation,
-                ex.from_currency.abbreviation
+                ex.from_currency.abbreviation,
+                ex.to_currency.abbreviation
             )
 
         ret += describe_exchange(self.ex1, self.cur2) + '\n'
@@ -212,15 +302,16 @@ class ArbitrageChain:
         return ret
 
 
-def can_execute_chain(chain):
+def offer_execute_chain(chain):
     """
-    Returns true if the user currently has some of the first currency
+    Ask the user if they would like to execute a given chain. If they
+    answer positively, the chain is executed
     """
-    bals = Wallet.get_balances()
-    for bal in bals:
-        if bal.currency == chain.cur1:
-            return True
-    return False
+    answer = input("Would you like to execute this chain? (y/N) ")
+    if answer.lower() in ['y', 'yes']:
+        chain.execute()
+    else:
+        print("Not executing chain")
 
 
 def valid(exc, cur1, cur2=None, exclude=None, exclude_cur=None):
@@ -290,6 +381,8 @@ def show_all():
     for chain in chains:
         ascii_art_spinner.clear()
         print(str(chain))
+        if chain.can_execute():
+            offer_execute_chain(chain)
     print('Found {0} arbitrage chains'.format(len(chains)))
 
 
@@ -302,6 +395,8 @@ def show_profitable():
     n = 0
     for chain in chains:
         print(str(chain))
+        if chain.can_execute():
+            offer_execute_chain(chain)
         n += 1
     print('Found {0} arbitrage chains'.format(n))
 
