@@ -85,9 +85,11 @@ def main():
     btc = Decimal(0)
     for balance in get_balances():
         btc += get_amt_in_btc(balance)
-    print('{0} BTC'.format(str(btc)))
+    btc_str = '{0:12.8f}'.format(btc)
+    print('{0} BTC'.format(btc_str))
     usd = get_amt_in_usd(btc)
-    print('{0} USD'.format(str(usd)))
+    usd_str = '{0:12.8f}'.format(usd)
+    print('{0} USD'.format(usd_str))
 
 if __name__ == '__main__':
     main()
