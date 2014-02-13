@@ -16,7 +16,7 @@ class Balance:
     """
     A container for a balance of a given currency
     Attributes:
-        currench: the Currency
+        currency: the Currency
         amount: a Decimal, the amount of currency
     Balance.get_own() : get a list of all own balances
     """
