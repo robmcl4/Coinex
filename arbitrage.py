@@ -41,40 +41,6 @@ class SmartExchange(Exchange):
         self._orders = super().get_orders()
         return self._orders
 
-    def get_highest_bid(self):
-        """
-        Get order of the highest price that someone is bidding
-        (willing to buy for)
-        """
-        ords = self.get_orders()
-        ords = [ordr for ordr in ords if ordr.bid is True]
-        best = max(ords, key=lambda x: x.rate)
-        return best
-
-    def get_lowest_ask(self):
-        """
-        Get order of the lowest price that someone is asking
-        (willing to sell for)
-        """
-        ords = self.get_orders()
-        ords = [ordr for ordr in ords if ordr.bid is False]
-        best = min(ords, key=lambda x: x.rate)
-        return best
-
-    def get_best_offer(self, target_cur):
-        """
-        Get the best offer (order) for the given currency.
-        NOTE: this may be highest bid or lowest ask
-        """
-        if target_cur == self.to_currency:
-            return self.get_lowest_ask()
-        elif target_cur == self.from_currency:
-            return self.get_highest_bid()
-        raise ValueError(
-            'Unsupported currency for this exchange ' +
-            target_cur.abbreviation
-        )
-
     def convert_to_other(self, amt, target_cur):
         """
         Convert the given amount of coin to the target currency using the most
