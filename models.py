@@ -23,12 +23,14 @@ class Balance:
 
     next_id = 0
 
-    def __init__(self, currency, amount):
+    def __init__(self, currency, amount, held=Decimal(0)):
         """
         Create a new Balance object.
         currency: either a currency object or an id
         amount: the amount, either a numeric or a string that parses to numeric
+        held: an optional Decimal of how much is being held
         """
+        self.held = Decimal(held)
         self.id = Balance.next_id
         Balance.next_id += 1
         if isinstance(currency, int):
@@ -60,7 +62,8 @@ class Balance:
         for bal in bals:
             curr = Currency.get(bal['currency_id'])
             amt = Decimal(bal['amount']) / pow(10, 8)
-            b = Balance(curr, amt)
+            held = Decimal(bal['held']) / pow(10, 8)
+            b = Balance(curr, amt, held=held)
             ret.append(b)
             registry.put(b)
         return ret
