@@ -12,6 +12,7 @@ xxxx USD
 import urllib.request
 import models
 import json
+import sys
 from decimal import *
 
 
@@ -84,7 +85,16 @@ def main():
     """
     btc = Decimal(0)
     for balance in get_balances():
-        btc += get_amt_in_btc(balance)
+        try:
+            btc += get_amt_in_btc(balance)
+        except ValueError:
+            sys.stderr.write(
+                'WARNING: Cannot convert {0} to btc\n'.format(
+                    balance.currency.abbreviation
+                )
+            )
+            # there isn't an exchange for this coin to BTC, ignore it
+            pass
     btc_str = '{0:12.8f}'.format(btc)
     print('{0} BTC'.format(btc_str))
     usd = get_amt_in_usd(btc)
