@@ -264,7 +264,7 @@ class Order:
         order_id: the order id
         exchange: the Exchange for this order
         bid: true if this is bid(buy), false for ask(sell)
-        rate: Decimal rate at to_currency per from_currency
+        rate: Decimal rate at from_currency per to_currency
         amount: the amount of this Order
         filled: the amount of this order that has been filled
         cancelled: true if this order is cancelled
