@@ -13,7 +13,10 @@ from decimal import *
 import utils
 import sys
 
+# the coinex transaction fee
 TRANSAC_FEE = 0.002
+# the minimum amount of to_currency required for a transaction
+MIN_TRANSAC = 0.01
 
 
 class SmartExchange(Exchange):
@@ -40,6 +43,19 @@ class SmartExchange(Exchange):
         self._orders = super().get_orders()
         return self._orders
 
+    def get_best_offer(self, target_cur):
+        """
+        Memoize getting the best offer for a currency
+        """
+        if hasattr(self, '_best_offers'):
+            if target_cur in self._best_offers:
+                return self._best_offers[target_cur]
+        else:
+            self._best_offers = dict()
+        ret = super().get_best_offer(target_cur)
+        self._best_offers[target_cur] = ret
+        return ret
+
     def convert_to_other(self, amt, target_cur):
         """
         Convert the given amount of coin to the target currency using the most
@@ -56,6 +72,20 @@ class SmartExchange(Exchange):
                 target_cur.abbreviation
             )
 
+    def is_enough(self, amt, cur):
+        """
+        Returns True if the given amt is enough to be traded.
+        amt: a Decimal of the amount to check
+        cur: the currency of amt
+        Otherwise returns False
+        """
+        if cur == self.to_currency:
+            return amt > MIN_TRANSAC
+        elif cur == self.from_currency:
+            return amt / self.get_best_offer().rate > MIN_TRANSAC
+        else:
+            raise ValueError("Invalid currency")
+
     def max_currency(self, target_cur):
         """
         Returns a Decimal of the maximum amount of currency that can
@@ -65,23 +95,37 @@ class SmartExchange(Exchange):
         """
         tfee = Decimal(1 - TRANSAC_FEE)
         if target_cur == self.to_currency:
+            # we need to end up with units of from_currency
             best_order = self.get_lowest_ask()
+            # filter out non-asks
             orders = filter(
-                lambda x: x.rate == best_order.rate,
+                lambda x: x.bid is False,
                 self.get_orders()
             )
+            # filter out orders not of the same rate
+            # maybe multiple orders exist?
+            orders = filter(
+                lambda x: x.rate == best_order.rate,
+                orders
+            )
             # we need to return in units of from_currency
-            # balance.amount is in units of to_currency
+            # amount is in units of to_currency
             # order.rate is in from_currency per to_currency
             ret = Decimal(0)
             for order in orders:
                 ret += (order.amount - order.filled) * order.rate
-            return ret * tfee
+            return Decimal(ret * tfee)
         elif target_cur == self.from_currency:
             best_order = self.get_highest_bid()
+            # filter out non-bids
+            orders = filter(
+                lambda x: x.bid is True,
+                self.get_orders()
+            )
+            # filter out orders not of the same rate
             orders = filter(
                 lambda x: x.rate == best_order.rate,
-                self.get_orders()
+                orders
             )
             # we need to return in units of to_currency
             # balance.amount is in units of to_currency
@@ -89,7 +133,7 @@ class SmartExchange(Exchange):
             ret = Decimal(0)
             for order in orders:
                 ret += order.amount - order.filled
-            return ret * tfee
+            return Decimal(ret * tfee)
         raise ValueError(
             'Unsupported currency for this exchange ' +
             target_cur.abbreviation
@@ -123,20 +167,35 @@ class ArbitrageChain:
 
     def get_roi(self):
         """
-        Get the return on investment
+        Get the return on investment.
+        Returns a Decimal of the ROI or None if this chain cannot be executed
         NOTE: 100% is returned as Decimal(1.0)
+        NOTE: this is memoized
         """
         if self._roi is not None:
             return self._roi
         tfee = Decimal(1 - TRANSAC_FEE)
         # we are starting with 1 unit of ex1.from_currency
         amt = Decimal(1)
+
+        # make sure it is enough to convert
+        if not self.ex1.is_enough(amt, self.cur1):
+            return None
         # now convert to cur2
         amt = (self.ex1.convert_to_other(amt, self.cur2)) * tfee
+
+        # again make sure it is enough to convert
+        if not self.ex2.is_enough(amt, self.cur2):
+            return None
         # now convert to cur3
         amt = (self.ex2.convert_to_other(amt, self.cur3)) * tfee
+
+        # again make sure it is enough to convert
+        if not self.ex3.is_enough(amt, self.cur3):
+            return None
         # now convert back to cur1
         amt = (self.ex3.convert_to_other(amt, self.cur1)) * tfee
+
         # let's see what we got back! return the ROI
         self._roi = Decimal(amt - Decimal(1))
         return self._roi
@@ -149,27 +208,29 @@ class ArbitrageChain:
         tfee = Decimal(1 - TRANSAC_FEE)
 
         # max3 is currently in units of cur3, convert to cur1 backward
-        max3 = self.ex3.max_currency(self.cur1)
+        max3 = self.ex3.max_currency(target_cur=self.cur1)
         # max3 is now in units of cur2
-        max3 = self.ex2.convert_to_other(max3, self.cur2) / tfee
+        max3 = self.ex2.convert_to_other(amt=max3, target_cur=self.cur2) / tfee
         # max3 is now in units of cur1
-        max3 = self.ex1.convert_to_other(max3, self.cur1) / tfee
+        max3 = self.ex1.convert_to_other(amt=max3, target_cur=self.cur1) / tfee
 
         # max2 is currently in units of cur2, convert to cur1 backward
-        max2 = self.ex2.max_currency(self.cur3)
+        max2 = self.ex2.max_currency(target_cur=self.cur3)
         # max2 is now in units of cur1
-        max2 = self.ex1.convert_to_other(max2, self.cur1) / tfee
+        max2 = self.ex1.convert_to_other(amt=max2, target_cur=self.cur1) / tfee
 
         # max1 is currently in units of cur1
-        max1 = self.ex1.max_currency(self.cur2)
+        max1 = self.ex1.max_currency(target_cur=self.cur2)
         return min(max1, max2, max3)
 
     def can_execute(self):
         """
         Returns true if the user currently has some of the first currency
+        NOTE: this memoizes the wallet balances
         """
-        bals = Wallet.get_balances()
-        for bal in bals:
+        if not hasattr(ArbitrageChain, '_bals') and ArbitrageChain._bals:
+            ArbitrageChain._bals = Wallet.get_balances()
+        for bal in ArbitrageChain.balances:
             if bal.currency == self.cur1:
                 return True
         return False
@@ -242,6 +303,8 @@ class ArbitrageChain:
             self.cur1,
             self.ex3
         )
+        # reset the record of balances
+        ArbitrageChain._bals = None
         print("finished")
 
     def __str__(self):
