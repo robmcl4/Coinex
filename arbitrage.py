@@ -262,7 +262,8 @@ class ArbitrageChain:
         try:
             ordr.submit()
         except Exception as e:
-            print(e.read())
+            if hasattr(e, 'read'):
+                print(e.read())
             raise e
         if (ordr.complete is not True):
             print("waiting for order to complete")
