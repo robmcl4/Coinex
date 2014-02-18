@@ -205,7 +205,10 @@ class ArbitrageChain:
         """
         Get the max that can be transferred through this chain
         returns in units of currency 1
+        NOTE: this is memoized
         """
+        if hasattr(self, '_max_transfer'):
+            return self._max_transfer
         tfee = Decimal(1 - TRANSAC_FEE)
 
         # max3 is currently in units of cur3, convert to cur1 backward
@@ -222,25 +225,52 @@ class ArbitrageChain:
 
         # max1 is currently in units of cur1
         max1 = self.ex1.max_currency(target_cur=self.cur2)
-        return min(max1, max2, max3)
+        ret = min(max1, max2, max3)
+        self._max_transfer = ret
+        return ret
 
     def get_min_transfer(self):
         """
         Get the least amount of cur1 that can be put through
         the system
+        NOTE: this is memoized
         """
+        if hasattr(self, '_min_transfer'):
+            return self._min_transfer
+
         tfee = Decimal(1 - TRANSAC_FEE)
 
         # get the minimum of cur1 we can trade
         if self.cur1 == self.ex3.to_currency:
+            # min1 is in units of cur1, convert backward through the chain
             min1 = Decimal(MIN_TRANSAC)
+            min1 = self.ex3.convert_to_other(amt=min1, target_cur=self.cur3)
+            min1 /= tfee
+            min1 = self.ex2.convert_to_other(amt=min1, target_cur=self.cur2)
+            min1 /= tfee
+            min1 = self.ex1.convert_to_other(amt=min1, target_cur=self.cur1)
+            min1 /= tfee
         else:
-            rate = self.ex3.get_lowest_ask().rate
-            min1 = Decimal(Decimal(MIN_TRANSAC) * rate)
+            min1 = Decimal(0)
 
-        # get the minimum of cur2 we can trade
-        # (in units of cur1)
+        if self.cur3 in [self.ex2.to_currency, self.ex3.to_currency]:
+            min3 = Decimal(MIN_TRANSAC)
+            min3 = self.ex2.convert_to_other(amt=min3, target_cur=self.cur2)
+            min3 /= tfee
+            min3 = self.ex1.convert_to_other(amt=min3, target_cur=self.cur1)
+            min3 /= tfee
+        else:
+            min3 = Decimal(0)
 
+        if self.cur2 in [self.ex1.to_currency, self.ex2.to_currency]:
+            min2 = Decimal(MIN_TRANSAC)
+            min2 = self.ex1.convert_to_other(amt=min2, target_cur=self.cur1)
+            min2 /= tfee
+        else:
+            min2 = Decimal(0)
+        ret = max(min1, min2, min3)
+        self._min_transfer = ret
+        return ret
 
     def can_execute(self):
         """
@@ -341,9 +371,10 @@ class ArbitrageChain:
         if roi:
             ret += ' ({0})%'.format(str(roi * 100))
         else:
-            ret += ' (Not Exchangable)'
-        ret += ' ({0} {1})'.format(
+            ret += ' (Not Exchangeable)'
+        ret += ' ({0} to {1} {2})'.format(
             str(self.get_max_transfer()),
+            str(self.get_min_transfer()),
             self.cur1.abbreviation
         )
 
@@ -466,11 +497,13 @@ def show_profitable():
 
 
 def main():
-    if '--all' in sys.argv:
-        show_all()
-    else:
-        show_profitable()
-
+    try:
+        if '--all' in sys.argv:
+            show_all()
+        else:
+            show_profitable()
+    except KeyboardInterrupt:
+        print("Exiting")
 
 if __name__ == '__main__':
     main()
