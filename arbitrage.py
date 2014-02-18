@@ -316,7 +316,11 @@ class ArbitrageChain:
         ret += self.cur3.abbreviation.rjust(4)
         ret += ' -> '
         ret += self.cur1.abbreviation.rjust(4)
-        ret += ' ({0})%'.format(str(self.get_roi() * 100))
+        roi = self.get_roi()
+        if roi:
+            ret += ' ({0})%'.format(str(roi * 100))
+        else:
+            ret += ' (Not Exchangable)'
         ret += ' ({0} {1})'.format(
             str(self.get_max_transfer()),
             self.cur1.abbreviation
@@ -403,7 +407,8 @@ def get_profitable_chains(len_cb=None, iter_cb=None):
     for chain in chains:
         if iter_cb:
             iter_cb()
-        if chain.get_roi() > 0:
+        roi = chain.get_roi()
+        if roi and roi > 0:
             yield chain
 
 
