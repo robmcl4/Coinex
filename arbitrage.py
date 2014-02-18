@@ -224,6 +224,24 @@ class ArbitrageChain:
         max1 = self.ex1.max_currency(target_cur=self.cur2)
         return min(max1, max2, max3)
 
+    def get_min_transfer(self):
+        """
+        Get the least amount of cur1 that can be put through
+        the system
+        """
+        tfee = Decimal(1 - TRANSAC_FEE)
+
+        # get the minimum of cur1 we can trade
+        if self.cur1 == self.ex3.to_currency:
+            min1 = Decimal(MIN_TRANSAC)
+        else:
+            rate = self.ex3.get_lowest_ask().rate
+            min1 = Decimal(Decimal(MIN_TRANSAC) * rate)
+
+        # get the minimum of cur2 we can trade
+        # (in units of cur1)
+
+
     def can_execute(self):
         """
         Returns true if the user currently has some of the first currency
@@ -232,7 +250,8 @@ class ArbitrageChain:
         if not hasattr(ArbitrageChain, '_bals') or not ArbitrageChain._bals:
             ArbitrageChain._bals = Wallet.get_balances()
         for bal in ArbitrageChain._bals:
-            if bal.currency == self.cur1:
+            if bal.currency == self.cur1 and bal.amount > 0:
+                print("{0} {1}".format(bal.currency.abbreviation, bal.amount))
                 return True
         return False
 
@@ -424,6 +443,8 @@ def show_all():
         print(str(chain))
         if chain.can_execute():
             offer_execute_chain(chain)
+        else:
+            print('You cannot execute this chain')
     print('Found {0} arbitrage chains'.format(len(chains)))
 
 
@@ -438,6 +459,8 @@ def show_profitable():
         print(str(chain))
         if chain.can_execute():
             offer_execute_chain(chain)
+        else:
+            print('You cannot execute this chain')
         n += 1
     print('Found {0} arbitrage chains'.format(n))
 
