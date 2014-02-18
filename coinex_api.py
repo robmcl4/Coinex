@@ -174,7 +174,7 @@ def submit_order(trade_pair_id, amount, bid, rate):
     }
     # set the root key to 'order' as per spec
     qry = {'order': qry}
-    return _make_request('orders', data=qry, private=True)['orders'][0]
+    return _make_request('orders', data=qry, private=True)['order'][0]
 
 
 def order_status(order_id):
