@@ -11,7 +11,6 @@ USAGE:  python arbitrage.py [--all]
 from models import *
 from decimal import *
 import utils
-import ascii_art_spinner
 import sys
 
 TRANSAC_FEE = 0.002
@@ -112,8 +111,15 @@ class ArbitrageChain:
         self.cur2 = ex1.to_currency
         if ex2.to_currency == ex1.to_currency:
             self.cur3 = ex2.from_currency
-        else:
+        elif ex2.from_currency == ex1.to_currency:
             self.cur3 = ex2.to_currency
+        else:
+            raise ValueError("Unsupported 2nd exchange combination")
+
+        # verify the third exchange's validity
+        ex3_curs = [ex3.to_currency, ex3.from_currency]
+        if not self.cur1 in ex3_curs or not self.cur3 in ex3_curs:
+            raise ValueError("Unsupported 3rd exchange combination")
 
     def get_roi(self):
         """
@@ -125,11 +131,11 @@ class ArbitrageChain:
         tfee = Decimal(1 - TRANSAC_FEE)
         # we are starting with 1 unit of ex1.from_currency
         amt = Decimal(1)
-        # now convert to ex1.to_currency
+        # now convert to cur2
         amt = (self.ex1.convert_to_other(amt, self.cur2)) * tfee
-        # now convert to ex2.to_currency
+        # now convert to cur3
         amt = (self.ex2.convert_to_other(amt, self.cur3)) * tfee
-        # now convert to ex3.to_currency
+        # now convert back to cur1
         amt = (self.ex3.convert_to_other(amt, self.cur1)) * tfee
         # let's see what we got back! return the ROI
         self._roi = Decimal(amt - Decimal(1))
@@ -345,7 +351,6 @@ def show_all():
     print("-------Getting All Chains-------")
     chains = get_chains()
     for chain in chains:
-        ascii_art_spinner.clear()
         print(str(chain))
         if chain.can_execute():
             offer_execute_chain(chain)
