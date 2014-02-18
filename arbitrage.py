@@ -48,12 +48,12 @@ class SmartExchange(Exchange):
         Memoize getting the best offer for a currency
         """
         if hasattr(self, '_best_offers'):
-            if target_cur in self._best_offers:
-                return self._best_offers[target_cur]
+            if target_cur.id in self._best_offers:
+                return self._best_offers[target_cur.id]
         else:
             self._best_offers = dict()
         ret = super().get_best_offer(target_cur)
-        self._best_offers[target_cur] = ret
+        self._best_offers[target_cur.id] = ret
         return ret
 
     def convert_to_other(self, amt, target_cur):
@@ -82,7 +82,8 @@ class SmartExchange(Exchange):
         if cur == self.to_currency:
             return amt > MIN_TRANSAC
         elif cur == self.from_currency:
-            return amt / self.get_best_offer().rate > MIN_TRANSAC
+            new_amt = amt / self.get_best_offer(self.to_currency).rate
+            return new_amt > MIN_TRANSAC
         else:
             raise ValueError("Invalid currency")
 
@@ -228,9 +229,9 @@ class ArbitrageChain:
         Returns true if the user currently has some of the first currency
         NOTE: this memoizes the wallet balances
         """
-        if not hasattr(ArbitrageChain, '_bals') and ArbitrageChain._bals:
+        if not hasattr(ArbitrageChain, '_bals') or not ArbitrageChain._bals:
             ArbitrageChain._bals = Wallet.get_balances()
-        for bal in ArbitrageChain.balances:
+        for bal in ArbitrageChain._bals:
             if bal.currency == self.cur1:
                 return True
         return False
