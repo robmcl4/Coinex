@@ -274,9 +274,12 @@ class ArbitrageChain:
 
     def can_execute(self):
         """
-        Returns true if the user currently has some of the first currency
+        Returns true if the user currently has some of the first currency and
+        this chain's max is greater than the min.
         NOTE: this memoizes the wallet balances
         """
+        if self.get_min_transfer() >= self.get_min_transfer():
+            return False
         if not hasattr(ArbitrageChain, '_bals') or not ArbitrageChain._bals:
             ArbitrageChain._bals = Wallet.get_balances()
         for bal in ArbitrageChain._bals:
@@ -475,7 +478,7 @@ def show_all():
         if chain.can_execute():
             offer_execute_chain(chain)
         else:
-            print('You cannot execute this chain')
+            print('This chain cannot be executed')
     print('Found {0} arbitrage chains'.format(len(chains)))
 
 
@@ -491,7 +494,7 @@ def show_profitable():
         if chain.can_execute():
             offer_execute_chain(chain)
         else:
-            print('You cannot execute this chain')
+            print('This chain cannot be executed')
         n += 1
     print('Found {0} arbitrage chains'.format(n))
 

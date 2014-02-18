@@ -341,11 +341,7 @@ class Order:
             rate = Decimal(ordr['rate']) / pow(10, 8)
             ret.append(
                 Order(
-                    ordr['id'],
-                    exc,
-                    ordr['bid'],
-                    amt,
-                    rate
+                    API_resp=ordr
                 )
             )
         return ret
