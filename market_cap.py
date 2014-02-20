@@ -14,6 +14,7 @@ import models
 import json
 import sys
 from decimal import *
+from urllib.error import URLError, HTTPError
 
 
 # set the decimal precision to 8
@@ -84,20 +85,33 @@ def main():
     Get the market cap!
     """
     btc = Decimal(0)
-    for balance in get_balances():
-        try:
-            btc += get_amt_in_btc(balance)
-        except ValueError:
-            sys.stderr.write(
-                'WARNING: Cannot convert {0} to btc\n'.format(
-                    balance.currency.abbreviation
+    try:
+        for balance in get_balances():
+            try:
+                btc += get_amt_in_btc(balance)
+            except ValueError:
+                sys.stderr.write(
+                    'WARNING: Cannot convert {0} to btc\n'.format(
+                        balance.currency.abbreviation
+                    )
                 )
-            )
-            # there isn't an exchange for this coin to BTC, ignore it
-            pass
+                # there isn't an exchange for this coin to BTC, ignore it
+                pass
+    except HTTPError as e:
+        print("Error: status code {0}".format(e.code))
+        print("Is coinex down?")
+        return
+
     btc_str = '{0:12.8f}'.format(btc)
     print('{0} BTC'.format(btc_str))
-    usd = get_amt_in_usd(btc)
+
+    try:
+        usd = get_amt_in_usd(btc)
+    except HTTPError as e:
+        print("Error: status code {0}".format(e.code))
+        print("Is bitstramp down?")
+        return
+
     usd_str = '{0:12.8f}'.format(usd)
     print('{0} USD'.format(usd_str))
 
