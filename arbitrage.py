@@ -278,7 +278,7 @@ class ArbitrageChain:
         this chain's max is greater than the min.
         NOTE: this memoizes the wallet balances
         """
-        if self.get_min_transfer() >= self.get_min_transfer():
+        if self.get_min_transfer() >= self.get_max_transfer():
             return False
         if not hasattr(ArbitrageChain, '_bals') or not ArbitrageChain._bals:
             ArbitrageChain._bals = Wallet.get_balances()
